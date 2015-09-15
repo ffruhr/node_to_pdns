@@ -3,15 +3,15 @@ use strict;
 use PowerDNS::Backend::MySQL;
 use JSON;
 use Date::Calc qw/ Delta_Days Today /;
+use LWP::UserAgent;
 use Data::Printer;
 
 $| = 1;
 
 my $domain = 'node.freifunk.ruhr';
-my $node_file = '/pfad/zur/nodes.json';
 my $params = {  
-	db_user                 =>      'dbuser',
-        db_pass                 =>      'dbpasswd',
+	db_user                 =>      'pdns',
+        db_pass                 =>      'pdnspwd',
         db_name                 =>      'pdns',
         db_port                 =>      '3306',
         db_host                 =>      'localhost',
@@ -36,7 +36,7 @@ sub main {
                 if($nodes->{'nodes'}->{$node}->{'flags'}->{'gateway'} eq 'true') { next; }
                 if($nodes->{'nodes'}->{$node}->{'nodeinfo'}->{'hostname'} =~ /map/) { next; }
 
-                my $hostname = $nodes->{'nodes'}->{$node}->{'nodeinfo'}->{'hostname'};
+                my $hostname = $nodes->{'nodes'}->{$node}->{'nodeinfo'}->{'hostname'}.'.node.freifunk.ruhr';
 
                 if($nodes->{'nodes'}->{$node}->{'lastseen'} =~ /^(\d{4})-(\d{2})-(\d{2})/) {
                         my($dyear, $dmonth, $dday) = ($1, $2, $3);
@@ -82,8 +82,11 @@ sub main {
 }
 
 sub get_nodes {
-        open(my $fh, '<', $node_file);
-        my $content = join('',<$fh>);
-        close($fh);
-        return from_json($content);
+	my $ua = LWP::UserAgent->new();
+	my $res = $ua->get('http://map.freifunk-ruhrgebiet.de/data/nodes.json');
+	if($res->is_success) {
+	        return from_json($res->decoded_content);
+	} else {
+		die "Cant get nodes.json";
+	}
 }
